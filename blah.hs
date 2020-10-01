@@ -7,7 +7,7 @@ isThirteen x = case x of
         _ -> putStrLn "nope"
 
 hasName :: String -> String -> Bool
-hasName s name = isInfixOf name s
+hasName s name = name `isInfixOf` s
 
 isImportant :: String -> [String] -> Bool
 isImportant s = any (hasName s)
@@ -19,12 +19,12 @@ main = do
 
         isThirteen (var + 1)
 
-        if isInfixOf "Name1" "< Name1> testing"
+        if "Name1" `isInfixOf` "< Name1> testing"
                 then putStrLn "yes"
                 else putStrLn "no"
 
         forM_ ["Name1", "Name2"] $ \s -> do
-                if isInfixOf s "< Name1> testing"
+                if s `isInfixOf` "< Name1> testing"
                 then putStrLn "yup"
                 else putStrLn "nope"
 
