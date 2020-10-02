@@ -1,6 +1,9 @@
 import Data.List
 import System.Exit
-import Control.Monad (when)
+import Control.Monad (when, unless)
+import Control.Exception
+import System.IO
+import System.IO.Error
 
 start :: String -> Int
 start s  = case elemIndex '<' s of
@@ -30,11 +33,16 @@ newmain :: String -> IO ()
 newmain s = do
         let a = start s
         let b = stop s a
-        let name = parsedName s a b
 
-        if isSane a b
-        then putStrLn "sane"
-        else putStrLn "insane"
+        res <- tryIOError $ openFile "test.txt" ReadMode
+        case res of
+                Left e -> putStrLn "oops"
+                Right h -> do
+                        hClose h
+
+        unless (isSane a b) exitFailure
+
+        let name = parsedName s a b
 
         when (isImportant name ["test", "testl"])
                 $ putStrLn s
