@@ -28,13 +28,7 @@ processLine s = when (isImportant s ["Name2", "Name1"]) $ putStrLn s
 
 processLines :: Handle -> IO ()
 processLines h = do
-        line <- tryIOError $ hGetLine h
-        case line of
-                Left _ -> return ()
-                Right l -> do
-                        processLine l
-                        processLines h
-                
+        hGetLine h >>= processLine
 
 main :: IO ()
 main = do
