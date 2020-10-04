@@ -3,6 +3,7 @@ import Data.List
 import Control.Monad (when)
 import System.IO
 import System.IO.Error
+import Control.Exception (catch)
 
 hasName :: String -> String -> Bool
 hasName s name = name `isInfixOf` s
@@ -27,8 +28,12 @@ processLine :: String -> IO ()
 processLine s = when (isImportant s ["Name2", "Name1"]) $ putStrLn s
 
 processLines :: Handle -> IO ()
-processLines h = do
-        hGetLine h >>= processLine
+processLines h = hGetLine h >>= processLine >> processLines h
+
+eofHandler :: IOError -> IO ()
+eofHandler e
+        | isEOFError e = return ()
+        | otherwise = ioError e
 
 main :: IO ()
 main = do
@@ -37,7 +42,7 @@ main = do
         case res of
                 Left _ -> putStrLn "oops"
                 Right h -> do
-                        processLines h
+                        catch (processLines h) eofHandler
                         i <- hTell h
                         print i
                         hClose h
