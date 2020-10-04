@@ -5,6 +5,11 @@ import System.IO
 import System.IO.Error
 import Control.Exception (catch)
 
+data LogFile = LogFile  { logName :: String
+                , logPath :: String
+                , logImportant :: [String]
+                }
+
 hasName :: String -> String -> Bool
 hasName s name = name `isInfixOf` s
 
@@ -37,15 +42,18 @@ eofHandler e
 
 main :: IO ()
 main = do
-        let s = "XX:XX < testl> testing"
+        let logFiles = [LogFile   { logName = "log2"
+                        , logPath = "log2.log"
+                        , logImportant = ["Name1", "Name2"]
+                        }]
+
         res <- tryIOError $ openFile "test.txt" ReadMode
         case res of
-                Left _ -> putStrLn "oops"
+                Left _ -> return ()
                 Right h -> do
-                        catch (processLines h) eofHandler
+                        processLines h `catch` eofHandler
                         i <- hTell h
                         print i
                         hClose h
 
-        when (isImportant s ["test", "testl"])
-                $ putStrLn s
+        mapM_ (putStrLn . logName) logFiles
