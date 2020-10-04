@@ -1,57 +1,52 @@
 import Data.List
-import System.Exit
-import Control.Monad (when, unless)
-import Control.Exception
+--import System.Exit
+import Control.Monad (when)
 import System.IO
 import System.IO.Error
-import Data.Maybe (fromMaybe)
-
-getOffsets :: String -> Maybe (Int, Int)
-getOffsets s = do
-        i <- elemIndex '<' s
-        d <- elemIndex '>' (drop i s)
-        return (i, i+d)
 
 hasName :: String -> String -> Bool
 hasName s name = name `isInfixOf` s
 
-isImportant :: String -> [String] -> Bool
-isImportant s = any $ hasName s
+--isImportant :: String -> [String] -> Bool
+--isImportant s = any $ hasName s
 
-parsedName :: String -> (Int, Int) -> String
-parsedName s (a, b) = drop (a + 1) $ take b s
-
-parseName :: String -> Maybe (String)
+parseName :: String -> Maybe String
 parseName s = do
-        o <- getOffsets s
-        return $ parsedName s o
+        a <- elemIndex '<' s
+        z <- elemIndex '>' $ drop a s
+        if z > a
+                then Just (drop (a + 1) $ take (z + a) s)
+                else Nothing
 
-isSane :: (Int, Int) -> Bool
-isSane (-1, _) = False
-isSane (_, -1) = False
-isSane (a, b) = b > a
+isImportant :: String -> [String] -> Bool
+isImportant s l = case parseName s of
+        Just n -> any (hasName n) l
+        Nothing -> False
 
-newmain :: String -> IO ()
-newmain s = do
-        res <- tryIOError $ openFile "test.txt" ReadMode
-        case res of
-                Left e -> putStrLn "oops"
-                Right h -> do
-                        hClose h
+processLine :: String -> IO ()
+processLine s = when (isImportant s ["Name2", "Name1"]) $ putStrLn s
 
-        -- let off = fromMaybe (-1, -1) (getOffsets s)
-
-        -- unless (isSane off) exitFailure
-
-        -- let name = parsedName s off
-        let name = fromMaybe "" $ parseName s
-
-        putStrLn name
-
-        when (isImportant name ["test", "testl"])
-                $ putStrLn s
+processLines :: Handle -> IO ()
+processLines h = do
+        line <- tryIOError $ hGetLine h
+        case line of
+                Left _ -> return ()
+                Right l -> do
+                        processLine l
+                        processLines h
+                
 
 main :: IO ()
 main = do
         let s = "XX:XX < testl> testing"
-        newmain s
+        res <- tryIOError $ openFile "test.txt" ReadMode
+        case res of
+                Left _ -> putStrLn "oops"
+                Right h -> do
+                        processLines h
+                        i <- hTell h
+                        print i
+                        hClose h
+
+        when (isImportant s ["test", "testl"])
+                $ putStrLn s
