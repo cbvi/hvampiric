@@ -4,8 +4,10 @@ import Control.Monad (when)
 import System.IO
 import System.IO.Error
 import Control.Exception (catch)
+import Debug.Trace
 
-data LogFile = LogFile  { logName :: String
+data LogFile = LogFile
+                { logName :: String
                 , logPath :: String
                 , logImportant :: [String]
                 }
@@ -20,20 +22,24 @@ parseName :: String -> Maybe String
 parseName s = do
         a <- elemIndex '<' s
         z <- elemIndex '>' $ drop a s
-        if z > a
+        if (a + z) > a
                 then Just (drop (a + 1) $ take (z + a) s)
-                else Nothing
+                else trace s $ Nothing
 
 isImportant :: String -> [String] -> Bool
 isImportant s l = case parseName s of
         Just n -> any (hasName n) l
         Nothing -> False
 
-processLine :: String -> IO ()
-processLine s = when (isImportant s ["Name2", "Name1"]) $ putStrLn s
+processLine :: String -> [String] -> IO ()
+processLine s l = when (isImportant s l) $ putStrLn s
 
-processLines :: Handle -> IO ()
-processLines h = hGetLine h >>= processLine >> processLines h
+-- processLines h = hGetLine h >>= processLine >> processLines h
+processLines :: Handle -> [String] -> IO ()
+processLines h n = do
+        l <- hGetLine h
+        processLine l n
+        processLines h n
 
 eofHandler :: IOError -> IO ()
 eofHandler e
@@ -47,7 +53,9 @@ processLog :: LogFile -> IO ()
 processLog l = do
         f <- openFile (logPath l) ReadMode
         putStrLn . logHeader $ l
-        processLines f `catch` eofHandler
+        processLines f (logImportant l) `catch` eofHandler
+        i <- hTell f
+        print i
         hClose f
         putStrLn "\n\n"
 
@@ -67,14 +75,3 @@ main = do
                         ]
 
         mapM_ processLog logFiles
-
-        res <- tryIOError $ openFile "test.txt" ReadMode
-        case res of
-                Left _ -> return ()
-                Right h -> do
-                        processLines h `catch` eofHandler
-                        i <- hTell h
-                        print i
-                        hClose h
-
-        mapM_ (putStrLn . logName) logFiles
