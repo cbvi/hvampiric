@@ -40,12 +40,33 @@ eofHandler e
         | isEOFError e = return ()
         | otherwise = ioError e
 
+logHeader :: LogFile -> String
+logHeader l = "=== " ++ logName l ++ " ==="
+
+processLog :: LogFile -> IO ()
+processLog l = do
+        f <- openFile (logPath l) ReadMode
+        putStrLn . logHeader $ l
+        processLines f `catch` eofHandler
+        hClose f
+        putStrLn "\n\n"
+
 main :: IO ()
 main = do
-        let logFiles = [LogFile   { logName = "log2"
+        let logFiles = [
+                        LogFile 
+                        { logName = "log2"
                         , logPath = "log2.log"
                         , logImportant = ["Name1", "Name2"]
-                        }]
+                        },
+                        LogFile
+                        { logName = "log1"
+                        , logPath = "log1.log"
+                        , logImportant = ["Name3"]
+                        }
+                        ]
+
+        mapM_ processLog logFiles
 
         res <- tryIOError $ openFile "test.txt" ReadMode
         case res of
