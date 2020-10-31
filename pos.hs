@@ -75,9 +75,11 @@ decodeOffs bs = decodeOff [] bs
 
 entHandler :: IOError -> IO (ByteString)
 entHandler e
-    | isDoesNotExistError e = return (B.concat $ map encode a)
+    | isDoesNotExistError e = return b
     | otherwise = ioError e
-    where a = [(0 :: Int64), (0 :: Int64)]
+    where a = [z, z]
+          b = B.concat $ map encode a
+          z = (0 :: Int64)
 
 main :: IO ()
 main = do
