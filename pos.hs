@@ -4,7 +4,6 @@ import Control.Monad (when)
 import System.IO
 import System.IO.Error
 import Control.Exception (catch)
-import Debug.Trace
 import Data.Binary
 import Data.Int
 import qualified Data.ByteString.Lazy as B
@@ -29,7 +28,7 @@ parseName s = do
     z <- elemIndex '>' $ drop a s
     if (a + z) > a
         then Just (drop (a + 1) $ take (z + a) s)
-        else trace s $ Nothing
+        else Nothing
 
 isImportant :: String -> [String] -> Bool
 isImportant s l = case parseName s of
@@ -54,7 +53,7 @@ eofHandler e
 logHeader :: LogFile -> String
 logHeader l = "=== " ++ logName l ++ " ==="
 
-processLog :: LogFile -> IO (Int64)
+processLog :: LogFile -> IO Int64
 processLog l = do
     f <- openFile (logPath l) ReadMode
     hSeek f AbsoluteSeek (fromIntegral (logSkip l))
@@ -71,15 +70,15 @@ decodeOff xs bs = case decodeOrFail bs of
     Right (b, _, v) -> decodeOff (xs ++ [v]) b
 
 decodeOffs :: ByteString -> [Int64]
-decodeOffs bs = decodeOff [] bs
+decodeOffs = decodeOff []
 
-entHandler :: IOError -> IO (ByteString)
+entHandler :: IOError -> IO ByteString
 entHandler e
     | isDoesNotExistError e = return b
     | otherwise = ioError e
     where a = [z, z]
           b = B.concat $ map encode a
-          z = (0 :: Int64)
+          z = 0 :: Int64
 
 main :: IO ()
 main = do
@@ -89,12 +88,12 @@ main = do
     let logFiles = [ LogFile { logName = "log2"
                              , logPath = "log2.log"
                              , logImportant = ["Name1", "Name2"]
-                             , logSkip = (coffs !! 0)
+                             , logSkip = coffs !! 0
                              }
                    , LogFile { logName = "log1"
                              , logPath = "log1.log"
                              , logImportant = ["Name3"]
-                             , logSkip = (coffs !! 1)
+                             , logSkip = coffs !! 1
                              }
                    ]
 
