@@ -73,9 +73,15 @@ decodeOff xs bs = case decodeOrFail bs of
 decodeOffs :: ByteString -> [Int64]
 decodeOffs bs = decodeOff [] bs
 
+entHandler :: IOError -> IO (ByteString)
+entHandler e
+    | isDoesNotExistError e = return (B.concat $ map encode a)
+    | otherwise = ioError e
+    where a = [(0 :: Int64), (0 :: Int64)]
+
 main :: IO ()
 main = do
-    cur <- B.readFile "offsets.dat"
+    cur <- B.readFile "offsets.dat" `catch` entHandler
     let coffs = decodeOffs cur
 
     let logFiles = [ LogFile { logName = "log2"
