@@ -6,14 +6,16 @@ import System.IO.Error
 import Control.Exception (catch)
 import Debug.Trace
 import Data.Binary
+import Data.Int
 import qualified Data.ByteString.Lazy as B
+import Data.ByteString.Lazy (ByteString)
 
 data LogFile = LogFile
-                { logName :: String
-                , logPath :: String
-                , logImportant :: [String]
-                , logSkip :: Integer
-                }
+   { logName :: String
+   , logPath :: String
+   , logImportant :: [String]
+   , logSkip :: Int64
+   }
 
 hasName :: String -> String -> Bool
 hasName s name = name `isInfixOf` s
@@ -23,16 +25,16 @@ hasName s name = name `isInfixOf` s
 
 parseName :: String -> Maybe String
 parseName s = do
-        a <- elemIndex '<' s
-        z <- elemIndex '>' $ drop a s
-        if (a + z) > a
-                then Just (drop (a + 1) $ take (z + a) s)
-                else trace s $ Nothing
+    a <- elemIndex '<' s
+    z <- elemIndex '>' $ drop a s
+    if (a + z) > a
+        then Just (drop (a + 1) $ take (z + a) s)
+        else trace s $ Nothing
 
 isImportant :: String -> [String] -> Bool
 isImportant s l = case parseName s of
-        Just n -> any (hasName n) l
-        Nothing -> False
+    Just n -> any (hasName n) l
+    Nothing -> False
 
 processLine :: String -> [String] -> IO ()
 processLine s l = when (isImportant s l) $ putStrLn s
@@ -40,51 +42,55 @@ processLine s l = when (isImportant s l) $ putStrLn s
 -- processLines h = hGetLine h >>= processLine >> processLines h
 processLines :: Handle -> [String] -> IO ()
 processLines h n = do
-        l <- hGetLine h
-        processLine l n
-        processLines h n
+    l <- hGetLine h
+    processLine l n
+    processLines h n
 
 eofHandler :: IOError -> IO ()
 eofHandler e
-        | isEOFError e = return ()
-        | otherwise = ioError e
+    | isEOFError e = return ()
+    | otherwise = ioError e
 
 logHeader :: LogFile -> String
 logHeader l = "=== " ++ logName l ++ " ==="
 
-processLog :: LogFile -> IO (Integer)
+processLog :: LogFile -> IO (Int64)
 processLog l = do
-        f <- openFile (logPath l) ReadMode
-        hSeek f AbsoluteSeek (logSkip l)
-        putStrLn . logHeader $ l
-        processLines f (logImportant l) `catch` eofHandler
-        i <- hTell f
-        hClose f
-        putStrLn "\n"
-        return i
+    f <- openFile (logPath l) ReadMode
+    hSeek f AbsoluteSeek (fromIntegral (logSkip l))
+    putStrLn . logHeader $ l
+    processLines f (logImportant l) `catch` eofHandler
+    i <- hTell f
+    hClose f
+    putStrLn "\n"
+    return (fromIntegral i)
 
-printBs :: [Integer] -> IO ()
-printBs offs = print s
-        where s = B.concat $ map encode offs
+decodeOff :: [Int64] -> ByteString -> [Int64]
+decodeOff xs bs = case decodeOrFail bs of
+    Left (_, _, _) -> xs
+    Right (b, _, v) -> decodeOff (xs ++ [v]) b
+
+decodeOffs :: ByteString -> [Int64]
+decodeOffs bs = decodeOff [] bs
 
 main :: IO ()
 main = do
-        let logFiles = [
-                        LogFile 
-                        { logName = "log2"
-                        , logPath = "log2.log"
-                        , logImportant = ["Name1", "Name2"]
-                        , logSkip = 10536777
-                        },
-                        LogFile
-                        { logName = "log1"
-                        , logPath = "log1.log"
-                        , logImportant = ["Name3"]
-                        , logSkip = 2031063
-                        }
-                        ]
+    cur <- B.readFile "offsets.dat"
+    let coffs = decodeOffs cur
 
-        offs <- mapM processLog logFiles
-        let bin = B.concat $ map encode offs
+    let logFiles = [ LogFile { logName = "log2"
+                             , logPath = "log2.log"
+                             , logImportant = ["Name1", "Name2"]
+                             , logSkip = (coffs !! 0)
+                             }
+                   , LogFile { logName = "log1"
+                             , logPath = "log1.log"
+                             , logImportant = ["Name3"]
+                             , logSkip = (coffs !! 1)
+                             }
+                   ]
 
-        B.writeFile "offsets.dat" bin
+    offs <- mapM processLog logFiles
+    let bin = B.concat $ map encode offs
+
+    B.writeFile "offsets.dat" bin
