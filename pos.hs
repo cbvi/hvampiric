@@ -19,16 +19,31 @@ data LogFile = LogFile
 hasName :: String -> String -> Bool
 hasName s name = name `isInfixOf` s
 
---isImportant :: String -> [String] -> Bool
---isImportant s = any $ hasName s
+isEmoteStart :: String -> Bool
+isEmoteStart [] = False
+isEmoteStart s = head s == '*'
 
-parseName :: String -> Maybe String
-parseName s = do
+isEmote :: String -> Bool
+isEmote s = isEmoteStart $ drop 7 s
+
+parseEmoteName :: String -> Maybe String
+parseEmoteName s = do
+    let tr = drop 9 s
+    sp <- elemIndex ' ' tr
+    Just (take sp tr)
+
+parseChatName :: String -> Maybe String
+parseChatName s = do
     a <- elemIndex '<' s
     z <- elemIndex '>' $ drop a s
     if (a + z) > a
         then Just (drop (a + 1) $ take (z + a) s)
         else Nothing
+
+parseName :: String -> Maybe String
+parseName s
+    | isEmote s = parseEmoteName s
+    | otherwise = parseChatName s
 
 isImportant :: String -> [String] -> Bool
 isImportant s l = case parseName s of
@@ -38,7 +53,6 @@ isImportant s l = case parseName s of
 processLine :: String -> [String] -> IO ()
 processLine s l = when (isImportant s l) $ putStrLn s
 
--- processLines h = hGetLine h >>= processLine >> processLines h
 processLines :: Handle -> [String] -> IO ()
 processLines h n = do
     l <- hGetLine h
@@ -80,6 +94,11 @@ entHandler e
           b = B.concat $ map encode a
           z = 0 :: Int64
 
+printOffsetChanges :: (Int64, Int64) -> IO ()
+printOffsetChanges (a, b) = if a /= b
+    then putStr "New offset: " >> print b
+    else putStr "Retaining offset: " >> print b
+
 main :: IO ()
 main = do
     cur <- B.readFile "offsets.dat" `catch` entHandler
@@ -99,5 +118,7 @@ main = do
 
     offs <- mapM processLog logFiles
     let bin = B.concat $ map encode offs
+
+    mapM_ printOffsetChanges $ zip coffs offs
 
     B.writeFile "offsets.dat" bin
