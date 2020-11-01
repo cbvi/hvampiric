@@ -9,6 +9,9 @@ import Data.Int
 import qualified Data.ByteString.Lazy as B
 import Data.ByteString.Lazy (ByteString)
 
+offsetFile :: String
+offsetFile = ".hvamp"
+
 data LogFile = LogFile
    { logName :: String
    , logPath :: String
@@ -101,7 +104,7 @@ printOffsetChanges (a, b) = if a /= b
 
 main :: IO ()
 main = do
-    cur <- B.readFile "offsets.dat" `catch` entHandler
+    cur <- B.readFile offsetFile `catch` entHandler
     let coffs = decodeOffs cur
 
     let logFiles = [ LogFile { logName = "log2"
@@ -121,4 +124,4 @@ main = do
 
     mapM_ printOffsetChanges $ zip coffs offs
 
-    B.writeFile "offsets.dat" bin
+    B.writeFile offsetFile bin
